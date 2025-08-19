@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "782824629421",
+    "project_id": "caca-milhas",
+    "storage_bucket": "caca-milhas.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:782824629421:android:3c7bbff04b5b4a550d5224",
+        "android_client_info": {
+          "package_name": "com.example.caca_milhas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFeS1oEWgX_wMrwx6_MtzfpZUaTvhciNM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

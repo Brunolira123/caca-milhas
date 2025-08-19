@@ -1,7 +1,9 @@
 import 'package:caca_milhas/pages/mock_data.dart';
+import 'package:caca_milhas/service/firestone_service.dart';
 import 'package:flutter/material.dart';
 
 class DashboardScreen extends StatelessWidget {
+  final FirestoreService _fs = FirestoreService();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,68 +59,95 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildFavoriteRouteCard() {
-    final rota = MockData.rotaAtual;
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("ROTA FAVORITA", style: TextStyle(color: Colors.grey)),
-            SizedBox(height: 8),
-            Text(
-              rota['rota'],
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _fs.getRota("Nova York"), // ou a rota favorita do usuário
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return CircularProgressIndicator();
+        final rota = snapshot.data!;
+        return Card(
+          elevation: 4,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("ROTA FAVORITA", style: TextStyle(color: Colors.grey)),
+                SizedBox(height: 8),
+                Text(
+                  "${rota['origem']} → ${rota['destino']}",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: rota['progresso'] ?? 0.5,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation(Colors.green),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Preço atual: ${rota['milhas']} milhas (média histórica: ${rota['historico'].last})",
+                ),
+              ],
             ),
-            SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: rota['progresso'],
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation(Colors.green),
-            ),
-            SizedBox(height: 8),
-            Text(
-              "Preço atual: ${rota['precoAtual']} milhas (média histórica: ${rota['mediaHistorica']})",
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildNextOpportunityCard() {
-    final opp = MockData.proximaOportunidade;
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.access_time, color: Colors.blue),
-            SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "PRÓXIMA OPORTUNIDADE",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  Text(
-                    opp['rota'],
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    "Promoção prevista em ${opp['diasRestantes']} dias!",
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                ],
-              ),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fs.getRotas(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Card(
+            elevation: 4,
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text("Nenhuma oportunidade disponível no momento."),
             ),
-          ],
-        ),
-      ),
+          );
+        }
+
+        final rotas = snapshot.data!;
+        final opp = rotas.reduce((a, b) => a['milhas'] < b['milhas'] ? a : b);
+
+        return Card(
+          elevation: 4,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, color: Colors.blue),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "PRÓXIMA OPORTUNIDADE",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      Text(
+                        "${opp['origem']} → ${opp['destino']}",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        "Promoção prevista em 2 dias!",
+                        style: TextStyle(color: Colors.blue),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -180,26 +209,36 @@ class DashboardScreen extends StatelessWidget {
 
   // ----------------- FEED DE PROMOÇÕES -----------------
   Widget _buildPromotionsFeed() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "PROMOÇÕES RÁPIDAS",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        Container(
-          height: 120,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: MockData.promocoes.length,
-            itemBuilder: (context, index) {
-              final promo = MockData.promocoes[index];
-              return _buildPromoCard(promo['rota']!, promo['milhas']!);
-            },
-          ),
-        ),
-      ],
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fs.getPromocoes(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return CircularProgressIndicator();
+        final promocoes = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "PROMOÇÕES RÁPIDAS",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Container(
+              height: 120,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: promocoes.length,
+                itemBuilder: (context, index) {
+                  final promo = promocoes[index];
+                  return _buildPromoCard(
+                    "${promo['origem']} → ${promo['destino']}",
+                    "${promo['milhas']}",
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
